@@ -1,0 +1,11 @@
+select user_id,click_time,unix_timestamp(click_time,"yyyy-MM-dd  HH:mm:ss")-unix_timestamp(lag(click_time) over(partition by user_id order by click_time),"yyyy-MM-dd HH:mm:ss")  time from user_clicklog;
+
+select id,time,r1,r2,(r1-r2)r3 from (select user_id id,click_time time,unix_timestamp(click_time,"yyyy-MM-dd HH:mm:ss") r1,nvl(unix_timestamp(lag(click_time) over(partition by user_id order by click_time),"yyyy-MM-dd HH:mm:ss"),0) r2 from user_clicklog)  t4;
+select id,time,row_number() over(partition by id,r5 order by time ) num from
+(select id,time,sum(r4) over(partition by id order by time) r5
+from
+(select id,time,r3,
+case when r3>=30 then 1
+        else 0 end r4
+from 
+(select id,time,r1,nvl(r2,0),floor(nvl((r1-r2),0)/60) r3 from (select user_id id,click_time time,unix_timestamp(click_time,"yyyy-MM-dd HH:mm:ss") r1,unix_timestamp(lag(click_time) over(partition by user_id order by click_time),"yyyy-MM-dd HH:mm:ss") r2 from user_clicklog)  t4) t5)t6 )t7;

@@ -1,0 +1,41 @@
+1.select team,gid,count(*) nums from (select team,year, year-row_number() over(partition by team order by year) gid from t1) t2 gruop by team,gid having nums >=3;
+
+2
+select id, price, time, dense_rank() over (partition
+by id order by time ) rank from
+(select id,time,price,
+lag(price) over (partition by id order by time ) lprice,lead(price) over (partition by id order by time ) dprice,round(price-lag(price) over (partition by id order by time),2) r1,round( price-lead(price) over (partition by id order by time ),2) r2
+from t2) t3;
+select id,time,price,
+case when price >lprice and price >dprice then '²¨·å'
+         when  price <lprice and price <dprice then '²¨¹È'
+         end  feature
+from         
+(select id,time,price,
+lag(price) over (partition by id order by time ) lprice,lead(price) over (partition by id order by time ) dprice,round(price-lag(price) over (partition by id order by time),2) r1,round( price-lead(price) over (partition by id order by time ),2) r2
+from t2) t3
+where (price > lprice and price >dprice) or (price <lprice and price <dprice) ;
+
+
+
+3.1
+select id ,
+    date_format(to_date(from_unixtime(UNIX_TIMESTAMP(dt,"yyyy/MM/dd hh:mm"))),"yyyy-MM-dd") daytime,
+    count(*) count,
+    (max(UNIX_TIMESTAMP(dt,"yyyy/MM/dd hh:mm"))-min(UNIX_TIMESTAMP(dt,"yyyy/MM/dd hh:mm")))/60 totalminutes
+from t3 group by id , date_format(to_date(from_unixtime(UNIX_TIMESTAMP(dt,"yyyy/MM/dd hh:mm"))),"yyyy-MM-dd");
+
+3.2
+with t5 as(
+select id,dt,lagdt,difftime,
+case when difftime >30 then 1 
+       else 0  end flag
+from
+(select id,dt,
+lag(dt) over(partition by id order by dt) lagdt,
+(unix_timestamp(dt,"yyyy/MM/dd HH:mm")-unix_timestamp(lag(dt) over(partition by id order by dt),"yyyy/MM/dd HH:mm"))/60 difftime from t3) t4)
+select id,count(*) nums,
+(unix_timestamp(max(dt),"yyyy/MM/dd HH:mm")-unix_timestamp(min(dt),"yyyy/MM/dd HH:mm"))/60 totaltime
+from
+(select id,dt,difftime,sum(flag) over(partition by id order by dt) p from t5) t6
+group by id,p;
